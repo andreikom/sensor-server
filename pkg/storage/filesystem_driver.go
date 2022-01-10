@@ -1,58 +1,90 @@
 package storage
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/andreikom/sensor-server/pkg"
+	"github.com/andreikom/sensor-server/pkg/models"
+	"github.com/andreikom/sensor-server/pkg/utils"
+	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
-	"time"
+	"strings"
 )
 
-type FileSystemDriver struct{}
+var temperatureStorePath string
 
-var storePath, temperatureStorePath string
-
-func initUserHome() string {
-	store, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Error occured while initiliazing storage: %s\n", err)
-	}
-	return store
-}
-
-func (d FileSystemDriver) Init() {
-	storePath = initUserHome()
+func (d Driver) Init() {
+	storePath := utils.GetUserHome()
 	temperatureStorePath = filepath.Join(storePath, "temperatures")
+	if _, err := os.Stat(temperatureStorePath); err == nil {
+		fmt.Printf("Temperatures store folder already exists: %s\n", temperatureStorePath)
+	} else if errors.Is(err, os.ErrNotExist) {
+		fmt.Printf("Creating temperatures folder at: %s\n", temperatureStorePath)
+		if err := os.Mkdir(temperatureStorePath, 0755); err != nil {
+			errorMsg := fmt.Sprintf("Could not have created a folder at: %s\n", err)
+			panic(errorMsg)
+		}
+		fmt.Printf("Created temperatures folder\n")
+	}
 }
 
-// TODO [andreik]: protect writing temperatures and reading to in-memory cache
-func (d FileSystemDriver) SaveTemperature(sensorId string, data string) error {
-	now := time.Now()
-	folderPath := filepath.Join(temperatureStorePath, sensorId, now.Format("01-02-2006"),
-		strconv.FormatInt(int64(now.Hour()), 10), strconv.FormatInt(int64(now.Minute()), 10))
-	if err := os.MkdirAll(folderPath, os.ModePerm); err != nil {
-		fmt.Println("Could not have created a folder at: " + folderPath)
-	}
-	filePath := filepath.Join(folderPath, data)
-	file, err := os.Create(filePath)
-	defer file.Close()
+func (d Driver) SaveSensorData(sensorId string, data []byte) error {
+	sensorJsonFilePath := filepath.Join(temperatureStorePath, sensorId+".json")
+	err := ioutil.WriteFile(sensorJsonFilePath, data, 0644)
 	if err != nil {
-		fmt.Println("Could not have created a file at: " + filePath)
+		fmt.Println("Could not have created a file at: " + sensorJsonFilePath)
 		return err
 	}
 	return nil
 }
 
-// TODO [andreik]: implement all below
-func (d FileSystemDriver) GetHourlyTempsBySensorIDAndDate() (map[int]pkg.HourlyTempModel, error) {
-	return make(map[int]pkg.HourlyTempModel), nil // TODO [andreik]: add initial capacity of weekly days
+func (d Driver) GetAvailableSensors() ([]string, error) {
+	sensors := make([]string, 0)
+	err := filepath.WalkDir(temperatureStorePath+"/", visitBySensorId(&sensors))
+	if err != nil {
+		fmt.Printf("Error while attempting to list sensors: %s", err)
+		return nil, err
+	}
+	return sensors, nil
 }
 
-func (d FileSystemDriver) GetAllSensorsDailyTemperatures() ([]int, error) {
-	return make([]int, 0), nil
+func visitBySensorId(sensors *[]string) fs.WalkDirFunc {
+	return func(path string, entry fs.DirEntry, err error) error {
+		if !entry.IsDir() {
+			splitPath := strings.Split(path, ".")
+			sensorId := strings.Split(splitPath[0], "/")
+			*sensors = append(*sensors, sensorId[len(sensorId)-1])
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
-func (d FileSystemDriver) CleanOldDailyEntry() error {
-	return nil
+func (d Driver) GetSensorData(sensorId string) (*models.Sensor, error) {
+	sensorFolderPath := filepath.Join(temperatureStorePath)
+	folder, err := os.Open(sensorFolderPath) // TODO [andreik]: add existence check first
+	if err != nil {
+		fmt.Printf("Error while attempting to open temp folder at: %s. Error: %s\n", sensorFolderPath, err)
+		return nil, err
+	} else if folder != nil { // TODO [andreik]: probably dont need this
+		sensorPath := filepath.Join(temperatureStorePath, sensorId)
+		sensorPath = sensorPath + ".json"
+		sensorFile, err := ioutil.ReadFile(sensorPath)
+		if err != nil {
+			fmt.Printf("Error while attempting to open a sensor record file at: %s. Error: %s\n", sensorPath, err)
+			return nil, err
+		}
+		res := models.Sensor{}
+		err = json.Unmarshal(sensorFile, &res)
+		if err != nil {
+			fmt.Printf("Error while unmarshalling record file at: %s. Error: %s\n", sensorPath, err)
+			return nil, err
+		}
+		return &res, nil
+	}
+	return nil, nil // the case that the folder does not exist and neither an error happened
 }

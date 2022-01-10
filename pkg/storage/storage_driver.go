@@ -1,7 +1,8 @@
 package storage
 
 import (
-	"github.com/andreikom/sensor-server/pkg"
+	"fmt"
+	"github.com/andreikom/sensor-server/pkg/models"
 	"sync"
 )
 
@@ -11,28 +12,33 @@ const (
 	Filesystem = "filesystem"
 )
 
-var Driver storageDriver
+type Driver struct{}
 
-type storageDriver interface {
+var driverInstance *Driver
+
+type DriverStorage interface {
 	Init()
-	SaveTemperature(sensorId string, data string) error
-	GetHourlyTempsBySensorIDAndDate() (map[int]pkg.HourlyTempModel, error)
-	GetAllSensorsDailyTemperatures() ([]int, error)
-	CleanOldDailyEntry() error
+	SaveSensorData(sensorId string, data []byte) error
+	GetAvailableSensors() ([]string, error)
+	GetSensorData(sensorId string) (*models.Sensor, error)
 }
 
-func InitStorage(storageDriver string) {
+func InitStorage(requestedDriver string) *Driver {
+	if driverInstance != nil {
+		fmt.Println("Note: a storage driver has been already initialized")
+	}
 	once.Do(func() {
 		switch {
-		case storageDriver == Filesystem:
+		case requestedDriver == Filesystem:
 			{
-				Driver = &FileSystemDriver{}
+				driverInstance = &Driver{}
 				break
 			}
 		}
-		Driver.Init()
-		if Driver == nil {
+		driverInstance.Init()
+		if driverInstance == nil {
 			panic("No storage initialized")
 		}
 	})
+	return driverInstance
 }
