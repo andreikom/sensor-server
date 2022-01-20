@@ -15,6 +15,7 @@ const (
 )
 
 func main() {
+	//defer profile.Start().Stop()
 	cfg := resolveConfig()
 	api.Start(cfg)
 }

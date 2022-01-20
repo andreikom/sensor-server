@@ -1,4 +1,4 @@
-package api
+package temperature
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func receiveData(w http.ResponseWriter, req *http.Request) {
+func ReceiveData(w http.ResponseWriter, req *http.Request) {
 	endpoint := "POST /temp"
 	if req.Method == "POST" {
 		data := strings.Split(strings.TrimPrefix(req.URL.Path, "/temp/"), "/")

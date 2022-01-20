@@ -1,10 +1,8 @@
 package storage
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/andreikom/sensor-server/pkg/models"
 	"github.com/andreikom/sensor-server/pkg/utils"
 	"io/fs"
 	"io/ioutil"
@@ -64,7 +62,7 @@ func visitBySensorId(sensors *[]string) fs.WalkDirFunc {
 	}
 }
 
-func (d Driver) GetSensorData(sensorId string) (*models.Sensor, error) {
+func (d Driver) GetSensorData(sensorId string) ([]byte, error) {
 	sensorFolderPath := filepath.Join(temperatureStorePath)
 	folder, err := os.Open(sensorFolderPath) // TODO [andreik]: add existence check first
 	if err != nil {
@@ -75,16 +73,10 @@ func (d Driver) GetSensorData(sensorId string) (*models.Sensor, error) {
 		sensorPath = sensorPath + ".json"
 		sensorFile, err := ioutil.ReadFile(sensorPath)
 		if err != nil {
-			fmt.Printf("Error while attempting to open a sensor record file at: %s. Error: %s\n", sensorPath, err)
+			fmt.Printf("Error while attempting to read a sensor record file at: %s. Error: %s\n", sensorPath, err)
 			return nil, err
 		}
-		res := models.Sensor{}
-		err = json.Unmarshal(sensorFile, &res)
-		if err != nil {
-			fmt.Printf("Error while unmarshalling record file at: %s. Error: %s\n", sensorPath, err)
-			return nil, err
-		}
-		return &res, nil
+		return sensorFile, nil
 	}
-	return nil, nil // the case that the folder does not exist and neither an error happened
+	return nil, nil // the case that the file does not exist and neither an error happened
 }

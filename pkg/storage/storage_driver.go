@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"github.com/andreikom/sensor-server/pkg/models"
 	"sync"
 )
 
@@ -20,7 +19,7 @@ type DriverStorage interface {
 	Init()
 	SaveSensorData(sensorId string, data []byte) error
 	GetAvailableSensors() ([]string, error)
-	GetSensorData(sensorId string) (*models.Sensor, error)
+	GetSensorData(sensorId string) ([]byte, error)
 }
 
 func InitStorage(requestedDriver string) *Driver {
