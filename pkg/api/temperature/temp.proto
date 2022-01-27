@@ -1,0 +1,31 @@
+syntax = "proto3";
+package temperature_grpc;
+option go_package = "/temperature";
+
+
+message SensorIdDate {
+  string sensorId = 1;
+  string date = 2;
+}
+
+message SensorIdTemp {
+  string sensorId = 1;
+  int32 temp = 2;
+}
+
+message Result {
+  string value = 1;
+}
+
+message Empty {
+}
+
+service TempService {
+  rpc SaveTemp(SensorIdTemp) returns (Empty) {}
+  rpc GetDailyMaxTempByDateAndById(SensorIdDate) returns (Result) {}
+  rpc GetWeeklyMaxTempById(SensorIdDate) returns (Result) {}
+  rpc GetDailyMinTempByDateAndById(SensorIdDate) returns (Result) {}
+  rpc GetWeeklyMinTempById(SensorIdDate) returns (Result) {}
+  rpc GetDailyAvgTempByDateAndById(SensorIdDate) returns (Result) {}
+  rpc GetWeeklyAvgTempById(SensorIdDate) returns (Result) {}
+}

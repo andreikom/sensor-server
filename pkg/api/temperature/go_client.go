@@ -16,10 +16,10 @@ func main() {
 
 	client := NewTempServiceClient(conn)
 
-	response, err := client.GetDailyMaxTempByDateAndByID(
+	response, err := client.GetDailyMaxTempByDateAndById(
 		context.Background(), &SensorIdDate{SensorId: "123", Date: "18/01/2022"})
 	if err != nil {
-		log.Fatalf("Error when calling GetDailyMaxTempByDateAndByID: %s", err)
+		log.Fatalf("Error when calling GetDailyMaxTempByDateAndById: %s", err)
 	}
 	log.Printf("Response from server: %s", response.Value)
 }

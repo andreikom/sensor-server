@@ -3,9 +3,9 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/andreikom/sensor-server/pkg/utils"
 	"io/fs"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,8 +13,11 @@ import (
 
 var temperatureStorePath string
 
-func (d Driver) Init() {
-	storePath := utils.GetUserHome()
+type FsDriver struct {
+	storePath string
+}
+
+func NewFSDriver(storePath string) *FsDriver {
 	temperatureStorePath = filepath.Join(storePath, "temperatures")
 	if _, err := os.Stat(temperatureStorePath); err == nil {
 		fmt.Printf("Temperatures store folder already exists: %s\n", temperatureStorePath)
@@ -26,9 +29,11 @@ func (d Driver) Init() {
 		}
 		fmt.Printf("Created temperatures folder\n")
 	}
+	log.Println(temperatureStorePath)
+	return &FsDriver{storePath: storePath}
 }
 
-func (d Driver) SaveSensorData(sensorId string, data []byte) error {
+func (d FsDriver) SaveSensorData(sensorId string, data []byte) error {
 	sensorJsonFilePath := filepath.Join(temperatureStorePath, sensorId+".json")
 	err := ioutil.WriteFile(sensorJsonFilePath, data, 0644)
 	if err != nil {
@@ -38,7 +43,7 @@ func (d Driver) SaveSensorData(sensorId string, data []byte) error {
 	return nil
 }
 
-func (d Driver) GetAvailableSensors() ([]string, error) {
+func (d FsDriver) GetAvailableSensors() ([]string, error) {
 	sensors := make([]string, 0)
 	err := filepath.WalkDir(temperatureStorePath+"/", visitBySensorId(&sensors))
 	if err != nil {
@@ -62,7 +67,7 @@ func visitBySensorId(sensors *[]string) fs.WalkDirFunc {
 	}
 }
 
-func (d Driver) GetSensorData(sensorId string) ([]byte, error) {
+func (d FsDriver) GetSensorData(sensorId string) ([]byte, error) {
 	sensorFolderPath := filepath.Join(temperatureStorePath)
 	folder, err := os.Open(sensorFolderPath) // TODO [andreik]: add existence check first
 	if err != nil {
